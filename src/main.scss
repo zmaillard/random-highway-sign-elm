@@ -1,0 +1,31 @@
+@charset "utf-8";
+$dimensions: 16 20 24 32 48 64 96 128;
+$family-primary: Rubik BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+
+//$fa-font-path: "../node_modules/font-awesome/fonts";
+@import "../node_modules/@fortawesome/fontawesome-free/css/svg-with-js.min.css";
+@import '../node_modules/bulma/bulma';
+
+@function headings($from:1, $to:6) {
+    @if $from == $to {
+        @return 'h#{$from}';
+    } @else {
+        @return 'h#{$from},' + headings($from+1, $to);
+    }
+}
+
+.body-columns {
+    margin-top: 6vh;
+}
+
+#{headings(1,6)} {
+    font-family: 'Trirong', serif;
+}
+
+.shield-padding{
+    padding: 0.1em;
+}
+
+.is-underline {
+    text-decoration: underline;
+}
