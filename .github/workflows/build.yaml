@@ -17,18 +17,19 @@ jobs:
           SEARCH_SERVICE: ${{ secrets.SEARCH_SERVICE }}
           SEARCH_KEY: ${{ secrets.SEARCH_KEY }}
 
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: "us-west-2"
+
       - name: Upload S3
         if: ${{ github.ref == 'refs/heads/gh_action' }}
         run: |
             aws s3 sync --debug dist/ s3://random.roadsign.pictures/
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: "us-west-2"
+
       - name: Invalidate Cache
         if: ${{ github.ref == 'refs/heads/gh_action' }}
         run: |
             aws cloudfront create-invalidation --distribution-id EKWK50GJ6BOOE --paths /index.html
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
