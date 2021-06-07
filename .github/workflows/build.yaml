@@ -25,11 +25,11 @@ jobs:
           aws-region: "us-west-2"
 
       - name: Upload S3
-        if: ${{ github.ref == 'refs/heads/gh_action' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         run: |
-            aws s3 sync --debug dist/ s3://random.roadsign.pictures/
+            aws s3 sync dist/ s3://random.roadsign.pictures/
 
       - name: Invalidate Cache
-        if: ${{ github.ref == 'refs/heads/gh_action' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         run: |
             aws cloudfront create-invalidation --distribution-id EKWK50GJ6BOOE --paths /index.html
