@@ -1,7 +1,4 @@
-on:
-  push:
-    branches:
-      - master
+on: push
 
 jobs:
   build:
@@ -17,12 +14,14 @@ jobs:
 
       - run: yarn run build:production
         env:
-          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
-          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          SEARCH_SERVICE: ${{ secrets.SEARCH_SERVICE }}
+          SEARCH_KEY: ${{ secrets.SEARCH_KEY }}
 
       - uses: chrislennon/action-aws-cli@v1.1
+        if: ${{ github.ref == 'refs/heads/gh_action' }}
 
       - name: Upload S3
+        if: ${{ github.ref == 'refs/heads/gh_action' }}
         run: |
             aws s3 sync dist/ s3://random.roadsign.pictures/
         env:
@@ -30,8 +29,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Invalidate Cache
+        if: ${{ github.ref == 'refs/heads/gh_action' }}
         run: |
-            aws cloudfront create-invalidation --distribution-id E32QZ8EDKNQ6AF --paths /index.html
+            aws cloudfront create-invalidation --distribution-id EKWK50GJ6BOOE --paths /index.html
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
