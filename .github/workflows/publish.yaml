@@ -1,0 +1,28 @@
+on:
+  release:
+    types: [released]
+
+name: Deploy Random Highway Sign
+
+jobs:
+  build:
+    name: Deploy Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set Version Number
+        run: |
+           "VERSION=$(echo ${{ github.ref }} | sed "s/v//")" >> $GITHUB_ENV
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: false
