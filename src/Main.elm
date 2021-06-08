@@ -1,12 +1,13 @@
 module Main exposing (init, main)
 
-import Array
 import Browser
+import FontAwesome.Attributes as Icon
+import FontAwesome.Brands as Icon
 import FontAwesome.Icon as Icon exposing (Icon)
 import FontAwesome.Solid as Icon
 import Html exposing (..)
+import Html.Attributes exposing (alt, class, href, src, style, type_)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (alt, class, src, style, type_ )
 import Http
 import Json.Decode exposing (Decoder, Error(..), field, string)
 import Random
@@ -16,6 +17,7 @@ import RemoteData exposing (WebData)
 type alias Flags =
     { searchServiceUrl : String
     , searchApiKey : String
+    , version : String
     }
 
 
@@ -24,6 +26,7 @@ type alias Model =
     , searchApiKey : String
     , count : Int
     , sign : Maybe SignResult
+    , version : String
     }
 
 
@@ -68,6 +71,7 @@ init flags =
       , searchApiKey = flags.searchApiKey
       , count = 0
       , sign = Maybe.Nothing
+      , version = flags.version
       }
     , countRequest flags.searchServiceUrl flags.searchApiKey
     )
@@ -274,6 +278,32 @@ viewCountOrError model =
             viewSign results
 
 
+viewFooter : String -> Html Msg
+viewFooter version =
+    footer [ class "footer" ]
+        [ div [ class "content has-text-centered" ]
+            [ div [ class "level" ]
+                [ div [ class "level-lefr" ]
+                    [ div [ class "level-item" ]
+                        [ a [ href "https://github.com/zmaillard/random-highway-sign-elm" ]
+                            [ Icon.github |> Icon.present |> Icon.styled [ Icon.fa2x ] |> Icon.view ]
+                        ]
+                    ]
+                , div [ class "level-right" ]
+                    [ div [ class "level-item" ]
+                        [ a [ href "https://random.roadsign.pictures" ]
+                            [ text "random.roadsign.pictures"
+                            ]
+                        ]
+                    , div [ class "level-item" ]
+                        [ text ("(v " ++ version ++ ")")
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -287,9 +317,10 @@ view model =
         , div [ class "buttons has-addons is-centered" ]
             [ button [ class "button", type_ "button", onClick Refresh ]
                 [ Icon.viewIcon Icon.random
-                ,text "Refresh"
-                 ]
+                , text "Refresh"
+                ]
             ]
+        , viewFooter model.version
         ]
 
 
