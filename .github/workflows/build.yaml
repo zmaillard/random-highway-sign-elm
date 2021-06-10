@@ -19,6 +19,7 @@ jobs:
 
       - name:  'Automated Version Bump'
         uses:  'phips28/gh-action-bump-version@master'
+        if: ${{ github.ref == 'refs/heads/main' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
