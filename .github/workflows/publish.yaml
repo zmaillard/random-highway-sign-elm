@@ -12,17 +12,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set Version Number
-        run: |
-           "VERSION=$(echo ${{ github.ref }} | sed "s/v//")" >> $GITHUB_ENV
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: "us-west-2"
+
+      - name: Upload S3
+        run: |
+            aws s3 sync dist/ s3://random.roadsign.pictures/
+
+      - name: Invalidate Cache
+        run: |
+            aws cloudfront create-invalidation --distribution-id EKWK50GJ6BOOE --paths /index.html
