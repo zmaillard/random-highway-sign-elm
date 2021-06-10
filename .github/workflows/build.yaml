@@ -21,8 +21,13 @@ jobs:
 
       - name:  'Automated Version Bump'
         uses:  'phips28/gh-action-bump-version@master'
+        id: versionBump
         if: ${{ github.ref == 'refs/heads/main' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag-prefix:  'v'
+
+      - name:  'New Version Number'
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: echo ${{ steps.versionBump.outputs.newTag }}
