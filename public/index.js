@@ -1,11 +1,10 @@
 var Elm = require("../src/Main.elm").Elm;
-//var packageJson = require("../package.json");
 
 var app = Elm.Main.init({
   node: document.getElementById("main"),
   flags: {
     searchServiceUrl: process.env.SEARCH_SERVICE,
     searchApiKey: process.env.SEARCH_KEY,
-    version: '1.0.4',//packageJson.version,
+    version: process.env.VERSION ? process.env.VERSION : "1.0.0",
   },
 });

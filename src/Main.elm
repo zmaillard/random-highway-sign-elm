@@ -296,7 +296,7 @@ viewFooter version =
                             ]
                         ]
                     , div [ class "level-item" ]
-                        [ text ("(v " ++ version ++ ")")
+                        [ text ("(" ++ version ++ ")")
                         ]
                     ]
                 ]
