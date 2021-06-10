@@ -12,6 +12,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14.17.0
+      
+      - run: yarn install
+
+      - run: yarn run build
+        env:
+          search_service: ${{ secrets.search_service }}
+          search_key: ${{ secrets.search_key }}
+
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
         with:
