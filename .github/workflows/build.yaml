@@ -1,5 +1,7 @@
 on: push
 
+name: Build Random Highway Sign
+
 jobs:
   build:
     runs-on: ubuntu-latest
