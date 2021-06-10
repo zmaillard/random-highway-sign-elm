@@ -20,8 +20,8 @@ jobs:
 
       - run: yarn run build
         env:
-          search_service: ${{ secrets.search_service }}
-          search_key: ${{ secrets.search_key }}
+          SEARCH_SERVICE: ${{ secrets.SEARCH_SERVICE }}
+          SEARCH_KEY: ${{ secrets.SEARCH_KEY }}
 
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
