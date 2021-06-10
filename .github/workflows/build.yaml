@@ -16,8 +16,8 @@ jobs:
 
       - run: yarn run build
         env:
-          search_service: ${{ secrets.search_service }}
-          search_key: ${{ secrets.search_key }}
+          SEARCH_SERVICE: ${{ secrets.SEARCH_SERVICE }}
+          SEARCH_KEY: ${{ secrets.SEARCH_KEY }}
 
       - name:  'Automated Version Bump'
         uses:  'phips28/gh-action-bump-version@master'
