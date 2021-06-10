@@ -1,0 +1,4 @@
+{
+    "extensions": ["elmtooling.elm-ls-vscode"],
+    "postCreateCommand": ["npm install -g elm-test elm-format"]
+}
