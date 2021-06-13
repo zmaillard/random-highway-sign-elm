@@ -11,7 +11,7 @@ import Html.Events exposing (onClick)
 import Http
 import Json.Decode exposing (Decoder, Error(..), field, string)
 import Random
-import RemoteData exposing (WebData)
+import RemoteData exposing (RemoteData(..), WebData)
 
 
 type alias Flags =
@@ -27,6 +27,7 @@ type alias Model =
     , count : Int
     , sign : Maybe SignResult
     , version : String
+    , loading : Bool
     }
 
 
@@ -72,6 +73,7 @@ init flags =
       , count = 0
       , sign = Maybe.Nothing
       , version = flags.version
+      , loading = True
       }
     , countRequest flags.searchServiceUrl flags.searchApiKey
     )
@@ -133,7 +135,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Refresh ->
-            ( model, newRandom model.count )
+            ( { model | loading = True }, newRandom model.count )
 
         RandomUpdated random ->
             ( model, signRequest model.searchServiceUrl model.searchApiKey random )
@@ -145,10 +147,10 @@ update msg model =
                         sign =
                             List.head signs
                     in
-                    ( { model | sign = sign }, Cmd.none )
+                    ( { model | sign = sign, loading = False }, Cmd.none )
 
                 _ ->
-                    ( { model | sign = Maybe.Nothing }, Cmd.none )
+                    ( { model | sign = Maybe.Nothing, loading = False }, Cmd.none )
 
         GotCount result ->
             case result of
@@ -303,6 +305,23 @@ viewFooter version =
             ]
         ]
 
+refreshIcon : Bool -> Html Msg
+refreshIcon isLoading = 
+  if isLoading then
+    Icon.viewStyled [ Icon.spin ] Icon.spinner
+  else
+    Icon.viewIcon Icon.random
+
+
+viewRefrshButton : Bool -> Html Msg
+viewRefrshButton isLoading =
+    div [ class "buttons has-addons is-centered" ]
+        [ button [ class "button", type_ "button", onClick Refresh ]
+            [ refreshIcon isLoading 
+            , text "Refresh"
+            ]
+        ]
+
 
 view : Model -> Html Msg
 view model =
@@ -314,12 +333,7 @@ view model =
                     ]
                 ]
             ]
-        , div [ class "buttons has-addons is-centered" ]
-            [ button [ class "button", type_ "button", onClick Refresh ]
-                [ Icon.viewIcon Icon.random
-                , text "Refresh"
-                ]
-            ]
+        , viewRefrshButton model.loading
         , viewFooter model.version
         ]
 
