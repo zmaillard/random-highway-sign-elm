@@ -1,6 +1,8 @@
 module Main exposing (init, main)
 
-import Browser
+import Browser exposing (UrlRequest)
+import Browser.Navigation as Nav
+import Url exposing (Url)
 import FontAwesome.Attributes as Icon
 import FontAwesome.Brands as Icon
 import FontAwesome.Icon as Icon exposing (Icon)
@@ -12,7 +14,8 @@ import Http
 import Json.Decode exposing (Decoder, Error(..), field, string)
 import Random
 import RemoteData exposing (RemoteData(..), WebData)
-
+import Route exposing (Route)
+import Route exposing (Route(..))
 
 type alias Flags =
     { searchServiceUrl : String
@@ -28,6 +31,8 @@ type alias Model =
     , sign : Maybe SignResult
     , version : String
     , loading : Bool
+    , route : Route
+    , navKey : Nav.Key
     }
 
 
@@ -66,27 +71,32 @@ newRandom max =
     Random.generate RandomUpdated (randomOffset max)
 
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
+init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url navKey =
+  let 
+    parsedRoute = Route.parseUrl url
+  in
     ( { searchServiceUrl = flags.searchServiceUrl
       , searchApiKey = flags.searchApiKey
       , count = 0
       , sign = Maybe.Nothing
       , version = flags.version
       , loading = True
+      , route = parsedRoute
+      , navKey = navKey
       }
-    , countRequest flags.searchServiceUrl flags.searchApiKey
+    , countRequest  parsedRoute flags.searchServiceUrl flags.searchApiKey
     )
 
 
-buildCountUrl : String -> String -> String
-buildCountUrl url apiKey =
-    url ++ "/docs/$count?&api-version=2020-06-30-Preview&api-key=" ++ apiKey
+buildCountUrl : String -> String -> String -> String
+buildCountUrl queryFilter url apiKey =
+    url ++ "/docs/$count?&api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ queryFilter
 
 
-buildSignUrl : String -> String -> Int -> String
-buildSignUrl url apiKey offset =
-    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt offset ++ "&$top=1"
+buildSignUrl : String -> String -> String -> Int -> String
+buildSignUrl queryFilter url apiKey offset =
+    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt offset ++ "&$top=1" ++ queryFilter
 
 
 highwayDecoder : Decoder (List Highway)
@@ -115,18 +125,32 @@ signDecoder =
         )
 
 
-countRequest : String -> String -> Cmd Msg
-countRequest url apiKey =
+countRequest : Route -> String -> String -> Cmd Msg
+countRequest route url apiKey =
     Http.get
-        { url = buildCountUrl url apiKey
+        { url = buildCountUrl (getFilter route) url apiKey
         , expect = Http.expectString (RemoteData.fromResult >> GotCount)
         }
 
 
-signRequest : String -> String -> Int -> Cmd Msg
-signRequest url apiKey offset =
+getFilter : Route -> String
+getFilter route =
+  case route of
+    Highway highway ->
+      "&$filter=Highways/any(h: h/Highway eq '" ++ highway ++ "')"
+    
+    State state ->
+      "&$filter=State eq '" ++ state ++ "'"
+
+    All ->
+      ""
+
+
+signRequest : Route -> String -> String -> Int -> Cmd Msg
+signRequest route url apiKey offset =
+    
     Http.get
-        { url = buildSignUrl url apiKey offset
+        { url = buildSignUrl (getFilter route) url apiKey offset
         , expect = Http.expectJson (RemoteData.fromResult >> GotSign) signDecoder
         }
 
@@ -138,7 +162,7 @@ update msg model =
             ( { model | loading = True }, newRandom model.count )
 
         RandomUpdated random ->
-            ( model, signRequest model.searchServiceUrl model.searchApiKey random )
+            ( model, signRequest model.route model.searchServiceUrl model.searchApiKey random )
 
         GotSign signList ->
             case signList of
@@ -340,9 +364,11 @@ view model =
 
 main : Program Flags Model Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
         , view = view
         , update = update
         , subscriptions = \_ -> Sub.none
+        , onUrlRequest = UrlRequest
+        , onUrlChange = UrlChange
         }
