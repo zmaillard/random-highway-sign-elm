@@ -99,7 +99,7 @@ buildCountUrl queryFilter url apiKey =
 
 buildSignUrl : String -> String -> String -> Int -> String
 buildSignUrl queryFilter url apiKey offset =
-    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt (offset - 1) ++ "&$top=1" ++ queryFilter
+    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt (offset) ++ "&$top=1" ++ queryFilter
 
 
 highwayDecoder : Decoder (List Highway)
