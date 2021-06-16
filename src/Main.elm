@@ -1,6 +1,7 @@
 module Main exposing (init, main)
 
-import Browser
+import Browser exposing (Document, UrlRequest)
+import Browser.Navigation as Nav
 import FontAwesome.Attributes as Icon
 import FontAwesome.Brands as Icon
 import FontAwesome.Icon as Icon exposing (Icon)
@@ -9,9 +10,11 @@ import Html exposing (..)
 import Html.Attributes exposing (alt, class, href, src, style, type_)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode exposing (Decoder, Error(..), field, string)
+import Json.Decode exposing (Decoder, Error(..), field, int, string)
 import Random
 import RemoteData exposing (RemoteData(..), WebData)
+import Route exposing (Route)
+import Url exposing (Url)
 
 
 type alias Flags =
@@ -28,6 +31,8 @@ type alias Model =
     , sign : Maybe SignResult
     , version : String
     , loading : Bool
+    , route : Route
+    , navKey : Nav.Key
     }
 
 
@@ -50,10 +55,12 @@ type alias SignResult =
 
 
 type Msg
-    = GotCount (WebData String)
+    = GotCount (WebData Int)
     | GotSign (WebData (List SignResult))
     | RandomUpdated Int
     | Refresh
+    | LinkClicked UrlRequest
+    | UrlChanged Url
 
 
 randomOffset : Int -> Random.Generator Int
@@ -66,27 +73,33 @@ newRandom max =
     Random.generate RandomUpdated (randomOffset max)
 
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
+init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url navKey =
+    let
+        parsedRoute =
+            Route.parseUrl url
+    in
     ( { searchServiceUrl = flags.searchServiceUrl
       , searchApiKey = flags.searchApiKey
       , count = 0
       , sign = Maybe.Nothing
       , version = flags.version
       , loading = True
+      , route = parsedRoute
+      , navKey = navKey
       }
-    , countRequest flags.searchServiceUrl flags.searchApiKey
+    , countRequest parsedRoute flags.searchServiceUrl flags.searchApiKey
     )
 
 
-buildCountUrl : String -> String -> String
-buildCountUrl url apiKey =
-    url ++ "/docs/$count?&api-version=2020-06-30-Preview&api-key=" ++ apiKey
+buildCountUrl : String -> String -> String -> String
+buildCountUrl queryFilter url apiKey =
+    url ++ "/docs?$count=true&api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ queryFilter
 
 
-buildSignUrl : String -> String -> Int -> String
-buildSignUrl url apiKey offset =
-    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt offset ++ "&$top=1"
+buildSignUrl : String -> String -> String -> Int -> String
+buildSignUrl queryFilter url apiKey offset =
+    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt (offset - 1) ++ "&$top=1" ++ queryFilter
 
 
 highwayDecoder : Decoder (List Highway)
@@ -96,6 +109,11 @@ highwayDecoder =
             (field "Highway" string)
             (field "ImageName" string)
         )
+
+
+countDecoder : Decoder Int
+countDecoder =
+    field "@odata.count" int
 
 
 signDecoder : Decoder (List SignResult)
@@ -115,18 +133,31 @@ signDecoder =
         )
 
 
-countRequest : String -> String -> Cmd Msg
-countRequest url apiKey =
+countRequest : Route -> String -> String -> Cmd Msg
+countRequest route url apiKey =
     Http.get
-        { url = buildCountUrl url apiKey
-        , expect = Http.expectString (RemoteData.fromResult >> GotCount)
+        { url = buildCountUrl (getFilter route) url apiKey
+        , expect = Http.expectJson (RemoteData.fromResult >> GotCount) countDecoder
         }
 
 
-signRequest : String -> String -> Int -> Cmd Msg
-signRequest url apiKey offset =
+getFilter : Route -> String
+getFilter route =
+    case route of
+        Route.Highway highway ->
+            "&$filter=Highways/any(h: h/Highway eq '" ++ highway ++ "')"
+
+        Route.State state ->
+            "&$filter=State eq '" ++ state ++ "'"
+
+        Route.All ->
+            ""
+
+
+signRequest : Route -> String -> String -> Int -> Cmd Msg
+signRequest route url apiKey offset =
     Http.get
-        { url = buildSignUrl url apiKey offset
+        { url = buildSignUrl (getFilter route) url apiKey offset
         , expect = Http.expectJson (RemoteData.fromResult >> GotSign) signDecoder
         }
 
@@ -134,11 +165,26 @@ signRequest url apiKey offset =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        LinkClicked urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model, Nav.pushUrl model.navKey (Url.toString url) )
+
+                Browser.External url ->
+                    ( model, Nav.load url )
+
+        UrlChanged url ->
+            let
+                newRoute =
+                    Route.parseUrl url
+            in
+            ( { model | route = newRoute }, Cmd.none )
+
         Refresh ->
             ( { model | loading = True }, newRandom model.count )
 
         RandomUpdated random ->
-            ( model, signRequest model.searchServiceUrl model.searchApiKey random )
+            ( model, signRequest model.route model.searchServiceUrl model.searchApiKey random )
 
         GotSign signList ->
             case signList of
@@ -155,16 +201,7 @@ update msg model =
         GotCount result ->
             case result of
                 RemoteData.Success c ->
-                    let
-                        countRes =
-                            String.toInt c
-                    in
-                    case countRes of
-                        Just count ->
-                            ( { model | count = count }, newRandom count )
-
-                        _ ->
-                            ( model, Cmd.none )
+                    ( { model | count = c }, newRandom c )
 
                 _ ->
                     ( model, Cmd.none )
@@ -215,8 +252,10 @@ viewSignDescription desc =
 
 viewHighway : Highway -> Html Msg
 viewHighway highway =
-    img [ class "shield-padding", alt highway.highway, src ("https://shield.sagebrushgis.com/Shields/20x/" ++ highway.imageName) ]
-        []
+    a [ href ("/highway/" ++ highway.highway) ]
+        [ img [ class "shield-padding", alt highway.highway, src ("https://shield.sagebrushgis.com/Shields/20x/" ++ highway.imageName) ]
+            []
+        ]
 
 
 viewLocation : SignResult -> List (Html Msg)
@@ -305,26 +344,28 @@ viewFooter version =
             ]
         ]
 
+
 refreshIcon : Bool -> Html Msg
-refreshIcon isLoading = 
-  if isLoading then
-    Icon.viewStyled [ Icon.spin ] Icon.spinner
-  else
-    Icon.viewIcon Icon.random
+refreshIcon isLoading =
+    if isLoading then
+        Icon.viewStyled [ Icon.spin ] Icon.spinner
+
+    else
+        Icon.viewIcon Icon.random
 
 
 viewRefrshButton : Bool -> Html Msg
 viewRefrshButton isLoading =
     div [ class "buttons has-addons is-centered" ]
         [ button [ class "button", type_ "button", onClick Refresh ]
-            [ refreshIcon isLoading 
+            [ refreshIcon isLoading
             , text "Refresh"
             ]
         ]
 
 
-view : Model -> Html Msg
-view model =
+currentView : Model -> Html Msg
+currentView model =
     div []
         [ section [ class "section" ]
             [ div [ class "columns has-same-height is-gapless is-centered" ]
@@ -338,11 +379,20 @@ view model =
         ]
 
 
+view : Model -> Document Msg
+view model =
+    { title = "Random Highway Sign"
+    , body = [ currentView model ]
+    }
+
+
 main : Program Flags Model Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
         , view = view
         , update = update
         , subscriptions = \_ -> Sub.none
+        , onUrlRequest = LinkClicked
+        , onUrlChange = UrlChanged
         }
