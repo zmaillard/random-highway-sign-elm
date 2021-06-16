@@ -144,6 +144,15 @@ countRequest route url apiKey =
 getFilter : Route -> String
 getFilter route =
     case route of
+        Route.Place fullPlace ->
+            "&$filter=Taxonomy eq '" ++ fullPlace ++ "')"
+
+        Route.County countySlug state ->
+            "$filter=CountySlug eq '" ++ countySlug ++ "' and State eq '" ++ state ++ "'"
+
+        Route.Country country ->
+            "&$filter=CountrySlug eq '" ++ country ++ "')"
+
         Route.Highway highway ->
             "&$filter=Highways/any(h: h/Highway eq '" ++ highway ++ "')"
 
@@ -266,8 +275,34 @@ viewLocation sign =
     ]
         |> List.concat
 
+countyLink : String -> String -> Html Msg
+countyLink county state =
+  div []
+  [
 
-fixLocation : String -> String -> String -> List String -> List String
+  ]
+
+placeLink : String -> Html Msg
+placeLink taxonomy =
+  div []
+  [
+
+  ]
+
+stateLink : String -> Html Msg
+stateLink state = 
+  div []
+  [
+
+  ]
+
+countryLink : String -> Html Msg
+countryLink country = 
+  div []
+  [
+
+  ]
+fixLocation : String -> String -> String -> List String -> List (Html Msg)
 fixLocation state county countyType location =
     let
         rev =
