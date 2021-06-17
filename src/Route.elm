@@ -2,11 +2,16 @@ module Route exposing (..)
 
 import Url exposing (Url)
 import Url.Parser exposing (..)
+import Html exposing (a)
 
 type Route
   = All
   | State String
+  | County String String
+  | Country String
+  | Place String 
   | Highway String
+
 
 parseUrl : Url -> Route
 parseUrl url =
@@ -24,4 +29,7 @@ matchRoute =
     [ map All top
     , map Highway (s "highway" </> string)
     , map State (s "state" </> string)
+    , map Country (s "country" </> string)
+    , map Place (s "place" </> string )
+    , map County (s "county" </> string </> string)
     ]
