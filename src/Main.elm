@@ -153,10 +153,10 @@ getFilter : Route -> String
 getFilter route =
     case route of
         Route.Place fullPlace ->
-            "&$filter=Taxonomy eq '" ++ fullPlace ++ "'"
+            "&$filter=Navigation/any(n:n eq '" ++ fullPlace ++ "')"
 
-        Route.County countySlug state ->
-            "$filter=CountySlug eq '" ++ countySlug ++ "' and State eq '" ++ state ++ "'"
+        Route.County state countySlug ->
+            "&$filter=CountySlug eq '" ++ countySlug ++ "' and State eq '" ++ state ++ "'"
 
         Route.Country country ->
             "&$filter=CountrySlug eq '" ++ country ++ "'"
@@ -325,7 +325,7 @@ fixLocation sign location =
         [ countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug]
 
     else
-        [ placeLink place sign.taxonomy, countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug ]
+        [ placeLink place (country ++ "|" ++ sign.state ++ "|" ++ place), countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug ]
 
 
 viewSignHighways : SignResult -> Html Msg
