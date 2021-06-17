@@ -10,7 +10,8 @@ import Html exposing (..)
 import Html.Attributes exposing (alt, class, href, src, style, type_)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode exposing (Decoder, Error(..), field, int, string)
+import Json.Decode exposing (Decoder, Error(..), andThen, field, int, string, succeed)
+import Json.Decode.Pipeline exposing (required)
 import Random
 import RemoteData exposing (RemoteData(..), WebData)
 import Route exposing (Route)
@@ -51,6 +52,8 @@ type alias SignResult =
     , countyType : String
     , county : String
     , state : String
+    , countySlug : String
+    , countrySlug : String
     }
 
 
@@ -116,20 +119,25 @@ countDecoder =
     field "@odata.count" int
 
 
-signDecoder : Decoder (List SignResult)
+signDecoder : Decoder SignResult
 signDecoder =
+    succeed SignResult
+        |> required "ImageId" string
+        |> required "Title" string
+        |> required "Description" string
+        |> required "Highways" highwayDecoder
+        |> required "Taxonomy" string
+        |> required "CountyType" string
+        |> required "County" string
+        |> required "State" string
+        |> required "CountySlug" string
+        |> required "CountrySlug" string
+
+signListDecoder : Decoder (List SignResult)
+signListDecoder =
     field "value"
         (Json.Decode.list
-            (Json.Decode.map8 SignResult
-                (field "ImageId" string)
-                (field "Title" string)
-                (field "Description" string)
-                (field "Highways" highwayDecoder)
-                (field "Taxonomy" string)
-                (field "CountyType" string)
-                (field "County" string)
-                (field "State" string)
-            )
+            signDecoder
         )
 
 
@@ -145,13 +153,13 @@ getFilter : Route -> String
 getFilter route =
     case route of
         Route.Place fullPlace ->
-            "&$filter=Taxonomy eq '" ++ fullPlace ++ "')"
+            "&$filter=Taxonomy eq '" ++ fullPlace ++ "'"
 
         Route.County countySlug state ->
             "$filter=CountySlug eq '" ++ countySlug ++ "' and State eq '" ++ state ++ "'"
 
         Route.Country country ->
-            "&$filter=CountrySlug eq '" ++ country ++ "')"
+            "&$filter=CountrySlug eq '" ++ country ++ "'"
 
         Route.Highway highway ->
             "&$filter=Highways/any(h: h/Highway eq '" ++ highway ++ "')"
@@ -167,7 +175,7 @@ signRequest : Route -> String -> String -> Int -> Cmd Msg
 signRequest route url apiKey offset =
     Http.get
         { url = buildSignUrl (getFilter route) url apiKey offset
-        , expect = Http.expectJson (RemoteData.fromResult >> GotSign) signDecoder
+        , expect = Http.expectJson (RemoteData.fromResult >> GotSign) signListDecoder
         }
 
 
@@ -187,7 +195,8 @@ update msg model =
                 newRoute =
                     Route.parseUrl url
             in
-            ( { model | route = newRoute }, Cmd.none )
+     
+            ( { model | route = newRoute }, countRequest newRoute model.searchServiceUrl model.searchApiKey)
 
         Refresh ->
             ( { model | loading = True }, newRandom model.count )
@@ -241,12 +250,6 @@ viewSignImage imageId title =
         ]
 
 
-viewLocationItem : String -> Html Msg
-viewLocationItem location =
-    span [ class "is-size-7 has-text-weight-light is-underline pr-1" ]
-        [ text location
-        ]
-
 
 viewSignDescription : String -> Html Msg
 viewSignDescription desc =
@@ -271,39 +274,40 @@ viewLocation : SignResult -> List (Html Msg)
 viewLocation sign =
     [ List.map (\h -> viewHighway h) sign.highways
     , [ Icon.viewIcon Icon.mapMarkerAlt ]
-    , String.split "|" sign.taxonomy |> fixLocation sign.state sign.county sign.countyType |> List.map (\l -> viewLocationItem l)
+    , String.split "|" sign.taxonomy |> fixLocation sign -- |> List.map (\l -> viewLocationItem l)
     ]
         |> List.concat
 
-countyLink : String -> String -> Html Msg
-countyLink county state =
-  div []
-  [
 
-  ]
+countyLink : String -> String -> String -> Html Msg
+countyLink display countySlug state =
+    a [ class "button is-text is-marginless is-paddingless is-small", href ("/county/" ++ state ++ "/" ++ countySlug )]
+        [ text display
+        ]
 
-placeLink : String -> Html Msg
-placeLink taxonomy =
-  div []
-  [
 
-  ]
+placeLink : String -> String -> Html Msg
+placeLink placeName taxonomy =
+    a [ class "button is-text is-marginless is-paddingless is-small", href ("/place/" ++ taxonomy ) ]
+        [ text placeName
+        ]
+
 
 stateLink : String -> Html Msg
-stateLink state = 
-  div []
-  [
+stateLink state =
+    a [ class "button is-text is-marginless is-paddingless is-small", href ("/state/" ++ state) ]
+        [ text state
+        ]
 
-  ]
 
-countryLink : String -> Html Msg
-countryLink country = 
-  div []
-  [
+countryLink : String -> String -> Html Msg
+countryLink display countrySlug =
+    a [ class "button is-text is-marginless is-paddingless is-small", href ("/country/" ++ countrySlug) ]
+        [ text display
+        ]
 
-  ]
-fixLocation : String -> String -> String -> List String -> List (Html Msg)
-fixLocation state county countyType location =
+fixLocation : SignResult -> List String -> List (Html Msg)
+fixLocation sign location =
     let
         rev =
             List.reverse location
@@ -318,10 +322,10 @@ fixLocation state county countyType location =
             List.length location
     in
     if count < 4 then
-        [ county ++ " " ++ countyType, state, country ]
+        [ countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug]
 
     else
-        [ place, county ++ " " ++ countyType, state, country ]
+        [ placeLink place sign.taxonomy, countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug ]
 
 
 viewSignHighways : SignResult -> Html Msg
