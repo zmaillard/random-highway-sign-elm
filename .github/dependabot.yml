@@ -13,7 +13,7 @@ updates:
     schedule:
       interval: "daily"
 
-  # Maintain dependencies for Composer
+  # Maintain dependencies for Elm
   - package-ecosystem: "elm"
     directory: "/"
     schedule:
