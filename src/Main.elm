@@ -276,15 +276,6 @@ viewMap sign token =
     [
 
     ]
-    --div [ class "map" ]
-    --    [ Mapbox.Element.map
-    --        [ Mapbox.Element.maxZoom 5
-    --        , Mapbox.Element.id "my-map"
-    --        , Mapbox.Element.eventFeaturesLayers [ "changes" ]
-    --        ]
-    --        (Styles.style (latitude) (longitude))
-    --    ]
-
 
 viewSignDescription : SignResult -> String -> Html Msg
 viewSignDescription sign token =
