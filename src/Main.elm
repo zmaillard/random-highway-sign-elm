@@ -10,7 +10,7 @@ import Html exposing (..)
 import Html.Attributes exposing (alt, class, href, src, style, type_)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode exposing (Decoder, Error(..), andThen, field, int, string, succeed)
+import Json.Decode exposing (Decoder, Error(..), andThen, field, int, string, succeed, float)
 import Json.Decode.Pipeline exposing (required)
 import Random
 import RemoteData exposing (RemoteData(..), WebData)
@@ -22,12 +22,14 @@ type alias Flags =
     { searchServiceUrl : String
     , searchApiKey : String
     , version : String
+    , mapToken : String
     }
 
 
 type alias Model =
     { searchServiceUrl : String
     , searchApiKey : String
+    , mapToken : String
     , count : Int
     , sign : Maybe SignResult
     , version : String
@@ -54,6 +56,7 @@ type alias SignResult =
     , state : String
     , countySlug : String
     , countrySlug : String
+    , location : (List Float)
     }
 
 
@@ -84,6 +87,7 @@ init flags url navKey =
     in
     ( { searchServiceUrl = flags.searchServiceUrl
       , searchApiKey = flags.searchApiKey
+      , mapToken = flags.mapToken
       , count = 0
       , sign = Maybe.Nothing
       , version = flags.version
@@ -102,7 +106,7 @@ buildCountUrl queryFilter url apiKey =
 
 buildSignUrl : String -> String -> String -> Int -> String
 buildSignUrl queryFilter url apiKey offset =
-    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt (offset) ++ "&$top=1" ++ queryFilter
+    url ++ "/docs?api-version=2020-06-30-Preview&api-key=" ++ apiKey ++ "&$skip=" ++ String.fromInt offset ++ "&$top=1" ++ queryFilter
 
 
 highwayDecoder : Decoder (List Highway)
@@ -118,6 +122,11 @@ countDecoder : Decoder Int
 countDecoder =
     field "@odata.count" int
 
+locationDecoder : Decoder (List Float)
+locationDecoder =
+  field "coordinates" (
+      Json.Decode.list float)
+  
 
 signDecoder : Decoder SignResult
 signDecoder =
@@ -132,6 +141,8 @@ signDecoder =
         |> required "State" string
         |> required "CountySlug" string
         |> required "CountrySlug" string
+        |> required "Location" locationDecoder
+
 
 signListDecoder : Decoder (List SignResult)
 signListDecoder =
@@ -195,8 +206,7 @@ update msg model =
                 newRoute =
                     Route.parseUrl url
             in
-     
-            ( { model | route = newRoute }, countRequest newRoute model.searchServiceUrl model.searchApiKey)
+            ( { model | route = newRoute }, countRequest newRoute model.searchServiceUrl model.searchApiKey )
 
         Refresh ->
             ( { model | loading = True }, newRandom model.count )
@@ -249,15 +259,32 @@ viewSignImage imageId title =
             ]
         ]
 
+mapUrl : SignResult -> String -> String
+mapUrl sign token = 
+  let
+    latitude = String.fromFloat(Maybe.withDefault 0.0 (List.head sign.location))
+    longitude = String.fromFloat(Maybe.withDefault 0.0 (List.head (List.reverse (sign.location))))
+    coords = """{"type":"Point","coordinates":[""" ++ latitude ++ "," ++ longitude ++ """ ]}"""
 
+  in
+  
+  "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/geojson(" ++ Url.percentEncode coords ++ ")/" ++ latitude ++ "," ++ longitude ++ ",11/1024x200?access_token=" ++ token
 
-viewSignDescription : String -> Html Msg
-viewSignDescription desc =
+viewMap : SignResult -> String -> Html Msg
+viewMap sign token =
+    img [ src ( mapUrl sign token )] 
+    [
+
+    ]
+
+viewSignDescription : SignResult -> String -> Html Msg
+viewSignDescription sign token =
     div [ class "card-content" ]
         [ div [ class "content" ]
             [ p [ class "is-size-6" ]
-                [ text desc
+                [ text sign.description
                 ]
+            , viewMap sign token
             ]
         ]
 
@@ -281,14 +308,14 @@ viewLocation sign =
 
 countyLink : String -> String -> String -> Html Msg
 countyLink display countySlug state =
-    a [ class "button is-text is-marginless is-paddingless is-small", href ("/county/" ++ state ++ "/" ++ countySlug )]
+    a [ class "button is-text is-marginless is-paddingless is-small", href ("/county/" ++ state ++ "/" ++ countySlug) ]
         [ text display
         ]
 
 
 placeLink : String -> String -> Html Msg
 placeLink placeName taxonomy =
-    a [ class "button is-text is-marginless is-paddingless is-small", href ("/place/" ++ taxonomy ) ]
+    a [ class "button is-text is-marginless is-paddingless is-small", href ("/place/" ++ taxonomy) ]
         [ text placeName
         ]
 
@@ -306,6 +333,7 @@ countryLink display countrySlug =
         [ text display
         ]
 
+
 fixLocation : SignResult -> List String -> List (Html Msg)
 fixLocation sign location =
     let
@@ -322,7 +350,7 @@ fixLocation sign location =
             List.length location
     in
     if count < 4 then
-        [ countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug]
+        [ countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug ]
 
     else
         [ placeLink place (country ++ "|" ++ sign.state ++ "|" ++ place), countyLink (sign.county ++ " " ++ sign.countyType) sign.countySlug sign.state, stateLink sign.state, countryLink country sign.countrySlug ]
@@ -338,12 +366,12 @@ viewSignHighways sign =
         ]
 
 
-viewSign : SignResult -> Html Msg
-viewSign res =
+viewSign : SignResult -> String -> Html Msg
+viewSign res token =
     div [ class "card" ]
         [ viewSignTitle res.title
         , viewSignImage res.url res.title
-        , viewSignDescription res.description
+        , viewSignDescription res token
         , viewSignHighways res
         ]
 
@@ -355,7 +383,7 @@ viewCountOrError model =
             text ""
 
         Just results ->
-            viewSign results
+            viewSign results model.mapToken
 
 
 viewFooter : String -> Html Msg
