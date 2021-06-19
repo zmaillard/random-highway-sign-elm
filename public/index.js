@@ -6,5 +6,6 @@ var app = Elm.Main.init({
     searchServiceUrl: process.env.SEARCH_SERVICE,
     searchApiKey: process.env.SEARCH_KEY,
     version: process.env.VERSION ? process.env.VERSION : "1.0.0",
+    mapToken: process.env.MAPBOX_TOKEN,
   },
 });
