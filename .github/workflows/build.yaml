@@ -19,6 +19,7 @@ jobs:
         env:
           SEARCH_SERVICE: ${{ secrets.SEARCH_SERVICE }}
           SEARCH_KEY: ${{ secrets.SEARCH_KEY }}
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
           VERSION: "v1.0.0"
 
   build-and-deploy:
@@ -46,6 +47,7 @@ jobs:
           VERSION: ${{ steps.versionBump.outputs.newTag }}
           SEARCH_SERVICE: ${{ secrets.SEARCH_SERVICE }}
           SEARCH_KEY: ${{ secrets.SEARCH_KEY }}
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
 
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
