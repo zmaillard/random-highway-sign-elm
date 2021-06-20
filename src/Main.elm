@@ -10,7 +10,7 @@ import Html exposing (..)
 import Html.Attributes exposing (alt, class, href, src, style, type_)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode exposing (Decoder, Error(..), andThen, field, int, string, succeed, float)
+import Json.Decode exposing (Decoder, Error(..), andThen, field, float, int, string, succeed)
 import Json.Decode.Pipeline exposing (required)
 import Random
 import RemoteData exposing (RemoteData(..), WebData)
@@ -56,7 +56,8 @@ type alias SignResult =
     , state : String
     , countySlug : String
     , countrySlug : String
-    , location : (List Float)
+    , location : List Float
+    , tags : List String
     }
 
 
@@ -122,11 +123,12 @@ countDecoder : Decoder Int
 countDecoder =
     field "@odata.count" int
 
+
 locationDecoder : Decoder (List Float)
 locationDecoder =
-  field "coordinates" (
-      Json.Decode.list float)
-  
+    field "coordinates"
+        (Json.Decode.list float)
+
 
 signDecoder : Decoder SignResult
 signDecoder =
@@ -142,6 +144,7 @@ signDecoder =
         |> required "CountySlug" string
         |> required "CountrySlug" string
         |> required "Location" locationDecoder
+        |> required "Tags" (Json.Decode.list string)
 
 
 signListDecoder : Decoder (List SignResult)
@@ -165,6 +168,9 @@ getFilter route =
     case route of
         Route.Place fullPlace ->
             "&$filter=Navigation/any(n:n eq '" ++ fullPlace ++ "')"
+
+        Route.Tag tag ->
+            "&$filter=Tags/any(t:t eq '" ++ tag ++ "')"
 
         Route.County state countySlug ->
             "&$filter=CountySlug eq '" ++ countySlug ++ "' and State eq '" ++ state ++ "'"
@@ -259,23 +265,36 @@ viewSignImage imageId title =
             ]
         ]
 
-mapUrl : SignResult -> String -> String
-mapUrl sign token = 
-  let
-    latitude = String.fromFloat(Maybe.withDefault 0.0 (List.head sign.location))
-    longitude = String.fromFloat(Maybe.withDefault 0.0 (List.head (List.reverse (sign.location))))
-    coords = """{"type":"Point","coordinates":[""" ++ latitude ++ "," ++ longitude ++ """ ]}"""
 
-  in
-  
-  "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/geojson(" ++ Url.percentEncode coords ++ ")/" ++ latitude ++ "," ++ longitude ++ ",11/1024x200?access_token=" ++ token
+mapUrl : SignResult -> String -> String
+mapUrl sign token =
+    let
+        latitude =
+            String.fromFloat (Maybe.withDefault 0.0 (List.head sign.location))
+
+        longitude =
+            String.fromFloat (Maybe.withDefault 0.0 (List.head (List.reverse sign.location)))
+
+        coords =
+            """{"type":"Point","coordinates":[""" ++ latitude ++ "," ++ longitude ++ """ ]}"""
+    in
+    "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/geojson(" ++ Url.percentEncode coords ++ ")/" ++ latitude ++ "," ++ longitude ++ ",11/1024x200?access_token=" ++ token
+
 
 viewMap : SignResult -> String -> Html Msg
 viewMap sign token =
-    img [ src ( mapUrl sign token )] 
-    [
+    img [ src (mapUrl sign token) ]
+        []
 
-    ]
+
+viewTag : String -> Html Msg
+viewTag tag =
+    a [ href ("/tag/" ++ tag) ]
+        [ span [ class "is-size-7 tag is-rounded" ]
+            [ text tag
+            ]
+        ]
+
 
 viewSignDescription : SignResult -> String -> Html Msg
 viewSignDescription sign token =
@@ -284,6 +303,7 @@ viewSignDescription sign token =
             [ p [ class "is-size-6" ]
                 [ text sign.description
                 ]
+            , div [ class "tags" ] (List.map (\t -> viewTag t) sign.tags)
             , viewMap sign token
             ]
         ]
