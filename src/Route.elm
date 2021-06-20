@@ -11,6 +11,7 @@ type Route
   | Country String
   | Place String 
   | Highway String
+  | Tag String
 
 
 parseUrl : Url -> Route
@@ -31,5 +32,6 @@ matchRoute =
     , map State (s "state" </> string)
     , map Country (s "country" </> string)
     , map Place (s "place" </> string )
+    , map Tag (s "tag" </> string )
     , map County (s "county" </> string </> string)
     ]
