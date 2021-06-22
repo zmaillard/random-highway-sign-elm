@@ -16,7 +16,8 @@ import Random
 import RemoteData exposing (RemoteData(..), WebData)
 import Route exposing (Route)
 import Url exposing (Url)
-
+import Iso8601
+import Time
 
 type alias Flags =
     { searchServiceUrl : String
@@ -58,6 +59,7 @@ type alias SignResult =
     , countrySlug : String
     , location : List Float
     , tags : List String
+    , dateTaken : String
     }
 
 
@@ -123,6 +125,44 @@ countDecoder : Decoder Int
 countDecoder =
     field "@odata.count" int
 
+monthLookup : Time.Month -> Int
+monthLookup month =
+  case month of
+    Time.Jan -> 1 
+    Time.Feb ->  2 
+    Time.Mar ->  3
+    Time.Apr -> 4
+    Time.May -> 5
+    Time.Jun ->  6
+    Time.Jul ->  7
+    Time.Aug ->  8
+    Time.Sep -> 9
+    Time.Oct ->  10
+    Time.Nov ->  11
+    Time.Dec ->  12
+
+
+formatDate : Time.Posix -> String
+formatDate time =
+  let
+    day = String.fromInt <| Time.toDay Time.utc time
+    month = String.fromInt  <| monthLookup <| Time.toMonth  Time.utc time
+    year = String.fromInt <| Time.toYear Time.utc time
+  in
+
+  month ++ "/" ++ day ++ "/" ++ year
+dateDecoder : Decoder String
+dateDecoder = 
+  
+  Json.Decode.andThen
+    (\s -> 
+      case (Iso8601.toTime s) of
+        Ok timeStr ->
+          Json.Decode.succeed (formatDate timeStr)
+        Err a ->
+          Json.Decode.fail ("")
+    )
+    Json.Decode.string
 
 locationDecoder : Decoder (List Float)
 locationDecoder =
@@ -145,6 +185,7 @@ signDecoder =
         |> required "CountrySlug" string
         |> required "Location" locationDecoder
         |> required "Tags" (Json.Decode.list string)
+        |> required "DateTaken" dateDecoder
 
 
 signListDecoder : Decoder (List SignResult)
@@ -302,6 +343,9 @@ viewSignDescription sign token =
         [ div [ class "content" ]
             [ p [ class "is-size-6" ]
                 [ text sign.description
+                ]
+            , p [ class "is-size-7" ]
+                [ text ("Taken " ++ sign.dateTaken)
                 ]
             , div [ class "tags" ] (List.map (\t -> viewTag t) sign.tags)
             , viewMap sign token
