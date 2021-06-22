@@ -150,7 +150,7 @@ formatDate time =
     year = String.fromInt <| Time.toYear Time.utc time
   in
 
-  day ++ "/" ++ month ++ "/" ++ year
+  month ++ "/" ++ day ++ "/" ++ year
 dateDecoder : Decoder String
 dateDecoder = 
   
@@ -160,7 +160,7 @@ dateDecoder =
         Ok timeStr ->
           Json.Decode.succeed (formatDate timeStr)
         Err a ->
-          Json.Decode.fail ("Incorrect Time")
+          Json.Decode.fail ("")
     )
     Json.Decode.string
 
@@ -345,7 +345,7 @@ viewSignDescription sign token =
                 [ text sign.description
                 ]
             , p [ class "is-size-7" ]
-                [ text sign.dateTaken
+                [ text ("Taken " ++ sign.dateTaken)
                 ]
             , div [ class "tags" ] (List.map (\t -> viewTag t) sign.tags)
             , viewMap sign token
