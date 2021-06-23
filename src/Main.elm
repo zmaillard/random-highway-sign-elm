@@ -10,14 +10,15 @@ import Html exposing (..)
 import Html.Attributes exposing (alt, class, href, src, style, type_)
 import Html.Events exposing (onClick)
 import Http
+import Iso8601
 import Json.Decode exposing (Decoder, Error(..), andThen, field, float, int, string, succeed)
 import Json.Decode.Pipeline exposing (required)
 import Random
 import RemoteData exposing (RemoteData(..), WebData)
 import Route exposing (Route)
-import Url exposing (Url)
-import Iso8601
 import Time
+import Url exposing (Url)
+
 
 type alias Flags =
     { searchServiceUrl : String
@@ -125,44 +126,75 @@ countDecoder : Decoder Int
 countDecoder =
     field "@odata.count" int
 
+
 monthLookup : Time.Month -> Int
 monthLookup month =
-  case month of
-    Time.Jan -> 1 
-    Time.Feb ->  2 
-    Time.Mar ->  3
-    Time.Apr -> 4
-    Time.May -> 5
-    Time.Jun ->  6
-    Time.Jul ->  7
-    Time.Aug ->  8
-    Time.Sep -> 9
-    Time.Oct ->  10
-    Time.Nov ->  11
-    Time.Dec ->  12
+    case month of
+        Time.Jan ->
+            1
+
+        Time.Feb ->
+            2
+
+        Time.Mar ->
+            3
+
+        Time.Apr ->
+            4
+
+        Time.May ->
+            5
+
+        Time.Jun ->
+            6
+
+        Time.Jul ->
+            7
+
+        Time.Aug ->
+            8
+
+        Time.Sep ->
+            9
+
+        Time.Oct ->
+            10
+
+        Time.Nov ->
+            11
+
+        Time.Dec ->
+            12
 
 
 formatDate : Time.Posix -> String
 formatDate time =
-  let
-    day = String.fromInt <| Time.toDay Time.utc time
-    month = String.fromInt  <| monthLookup <| Time.toMonth  Time.utc time
-    year = String.fromInt <| Time.toYear Time.utc time
-  in
+    let
+        day =
+            String.fromInt <| Time.toDay Time.utc time
 
-  month ++ "/" ++ day ++ "/" ++ year
+        month =
+            String.fromInt <| monthLookup <| Time.toMonth Time.utc time
+
+        year =
+            String.fromInt <| Time.toYear Time.utc time
+    in
+    month ++ "/" ++ day ++ "/" ++ year
+
+
 dateDecoder : Decoder String
-dateDecoder = 
-  
-  Json.Decode.andThen
-    (\s -> 
-      case (Iso8601.toTime s) of
-        Ok timeStr ->
-          Json.Decode.succeed (formatDate timeStr)
-        Err a ->
-          Json.Decode.fail ("")
-    )
-    Json.Decode.string
+dateDecoder =
+    Json.Decode.andThen
+        (\s ->
+            case Iso8601.toTime s of
+                Ok timeStr ->
+                    Json.Decode.succeed (formatDate timeStr)
+
+                Err a ->
+                    Json.Decode.fail ""
+        )
+        Json.Decode.string
+
 
 locationDecoder : Decoder (List Float)
 locationDecoder =
@@ -202,6 +234,46 @@ countRequest route url apiKey =
         { url = buildCountUrl (getFilter route) url apiKey
         , expect = Http.expectJson (RemoteData.fromResult >> GotCount) countDecoder
         }
+
+
+getFilterDescription : Route -> SignResult -> String
+getFilterDescription route sign =
+    case route of
+        Route.Place place ->
+          let
+            placeCleanMaybe = String.split "|" place |> List.reverse |> List.head
+          in
+            case placeCleanMaybe of 
+              Just placeClean ->
+                "Showing Random Signs From " ++ placeClean ++ ", " ++ sign.state
+              Nothing ->
+                ""
+
+        Route.Tag tag ->
+            "Showing Random Signs Tagged With " ++ tag
+
+        Route.County _ _ ->
+            "Showing Random Signs From " ++ sign.county ++ " " ++ sign.countyType ++ ", " ++ sign.state
+
+        Route.Country _ ->
+          let
+            countryNameMaybe = String.split "|" sign.taxonomy |> List.reverse |> List.head
+          in
+            case countryNameMaybe of
+              Just countryName ->
+                "Showing Random Signs From " ++ countryName
+
+              Nothing ->
+                ""
+
+        Route.Highway highway ->
+            "Showing Random Signs On " ++ highway
+
+        Route.State state ->
+            "Showing Random Signs From " ++ state
+
+        Route.All ->
+            ""
 
 
 getFilter : Route -> String
@@ -447,7 +519,12 @@ viewCountOrError model =
             text ""
 
         Just results ->
-            viewSign results model.mapToken
+            div []
+                [ p [ class "is-centered" ]
+                    [ text (getFilterDescription model.route results)
+                    ]
+                , viewSign results model.mapToken
+                ]
 
 
 viewFooter : String -> Html Msg
