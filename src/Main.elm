@@ -240,37 +240,48 @@ getFilterDescription : Route -> SignResult -> String
 getFilterDescription route sign =
     case route of
         Route.Place place ->
-          let
-            placeCleanMaybe = String.split "|" place |> List.reverse |> List.head
-          in
-            case placeCleanMaybe of 
-              Just placeClean ->
-                "Showing Random Signs From " ++ placeClean ++ ", " ++ sign.state
-              Nothing ->
-                ""
+            let
+                placeCleanMaybe =
+                    String.split "|" place
+                        |> List.reverse
+                        |> List.head
+                        |> Maybe.withDefault ""
+                        |> Url.percentDecode
+            in
+            case placeCleanMaybe of
+                Just placeClean ->
+                    "Showing Random Signs From " ++ placeClean ++ ", " ++ sign.state
+
+                Nothing ->
+                    ""
 
         Route.Tag tag ->
-            "Showing Random Signs Tagged With " ++ tag
+            let
+                cleanTag =
+                    Url.percentDecode tag |> Maybe.withDefault ""
+            in
+            "Showing Random Signs Tagged With " ++ cleanTag
 
         Route.County _ _ ->
             "Showing Random Signs From " ++ sign.county ++ " " ++ sign.countyType ++ ", " ++ sign.state
 
         Route.Country _ ->
-          let
-            countryNameMaybe = String.split "|" sign.taxonomy |> List.reverse |> List.head
-          in
-            case countryNameMaybe of
-              Just countryName ->
-                "Showing Random Signs From " ++ countryName
-
-              Nothing ->
-                ""
+            let
+                countryName =
+                    String.split "|" sign.taxonomy
+                        |> List.reverse
+                        |> List.head
+                        |> Maybe.withDefault ""
+                        |> Url.percentDecode
+                        |> Maybe.withDefault ""
+            in
+            "Showing Random Signs From " ++ countryName
 
         Route.Highway highway ->
             "Showing Random Signs On " ++ highway
 
         Route.State state ->
-            "Showing Random Signs From " ++ state
+            "Showing Random Signs From " ++ Maybe.withDefault "" (Url.percentDecode state)
 
         Route.All ->
             ""
@@ -520,10 +531,7 @@ viewCountOrError model =
 
         Just results ->
             div []
-                [ p [ class "is-centered" ]
-                    [ text (getFilterDescription model.route results)
-                    ]
-                , viewSign results model.mapToken
+                [ viewSign results model.mapToken
                 ]
 
 
@@ -572,6 +580,35 @@ viewRefrshButton isLoading =
         ]
 
 
+viewFilterText : Model -> Html Msg
+viewFilterText model =
+    case model.sign of
+        Just sign ->
+            let
+                filterText =
+                    getFilterDescription model.route sign
+
+                length =
+                    String.length filterText
+            in
+            if length == 0 then
+                div [] []
+
+            else
+                div [ class "buttons is-centered" ]
+                    [ a [ class "button is-success is-outlined ", href "/" ]
+                        [ span []
+                            [ text (getFilterDescription model.route sign)
+                            ]
+                        , button [ class "delete" ]
+                            []
+                        ]
+                    ]
+
+        Nothing ->
+            div [] []
+
+
 currentView : Model -> Html Msg
 currentView model =
     div []
@@ -582,6 +619,7 @@ currentView model =
                     ]
                 ]
             ]
+        , viewFilterText model
         , viewRefrshButton model.loading
         , viewFooter model.version
         ]
