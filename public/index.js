@@ -9,3 +9,12 @@ var app = Elm.Main.init({
     mapToken: process.env.MAPBOX_TOKEN,
   },
 });
+
+
+app.ports.loadImage.subscribe(function (msg) {
+  let img = new Image();
+  img.onload = function() {
+    app.ports.receiveImageUpdates.send(this.src);
+  }
+  img.src = msg;
+})

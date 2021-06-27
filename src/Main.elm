@@ -13,6 +13,7 @@ import Http
 import Iso8601
 import Json.Decode exposing (Decoder, Error(..), andThen, field, float, int, string, succeed)
 import Json.Decode.Pipeline exposing (required)
+import Ports exposing (loadImage, receiveImageUpdates)
 import Random
 import RemoteData exposing (RemoteData(..), WebData)
 import Route exposing (Route)
@@ -38,6 +39,7 @@ type alias Model =
     , loading : Bool
     , route : Route
     , navKey : Nav.Key
+    , currentImageDisplay : String
     }
 
 
@@ -71,6 +73,7 @@ type Msg
     | Refresh
     | LinkClicked UrlRequest
     | UrlChanged Url
+    | Receive String
 
 
 randomOffset : Int -> Random.Generator Int
@@ -98,6 +101,7 @@ init flags url navKey =
       , loading = True
       , route = parsedRoute
       , navKey = navKey
+      , currentImageDisplay = ""
       }
     , countRequest parsedRoute flags.searchServiceUrl flags.searchApiKey
     )
@@ -344,6 +348,9 @@ update msg model =
         RandomUpdated random ->
             ( model, signRequest model.route model.searchServiceUrl model.searchApiKey random )
 
+        Receive message ->
+            ( { model | currentImageDisplay = message }, Cmd.none )
+
         GotSign signList ->
             case signList of
                 RemoteData.Success signs ->
@@ -351,7 +358,18 @@ update msg model =
                         sign =
                             List.head signs
                     in
-                    ( { model | sign = sign, loading = False }, Cmd.none )
+                    case sign of
+                        Nothing ->
+                          ( { model | sign = Maybe.Nothing, loading = False }, Cmd.none )
+                        Just s ->
+                            let
+                                url =
+                                    "https://sign.sagebrushgis.com/" ++ s.url ++ "/" ++ s.url ++ "_l.jpg"
+
+                                placeholder =
+                                    "https://sign.sagebrushgis.com/" ++ s.url ++ "/" ++ s.url ++ "_p.jpg"
+                            in
+                            ( { model | sign = sign, loading = False, currentImageDisplay = placeholder }, loadImage url )
 
                 _ ->
                     ( { model | sign = Maybe.Nothing, loading = False }, Cmd.none )
@@ -377,11 +395,7 @@ viewSignTitle title =
 
 
 viewSignImage : String -> String -> Html Msg
-viewSignImage imageId title =
-    let
-        url =
-            "https://sign.sagebrushgis.com/" ++ imageId ++ "/" ++ imageId ++ "_l.jpg"
-    in
+viewSignImage url title =
     div [ class "card-image" ]
         [ figure [ class "image is-4by3 width" ]
             [ img [ src url, style "opacity" "1", style "transition" "opacity 0.15s linear 0s", alt title ]
@@ -513,11 +527,11 @@ viewSignHighways sign =
         ]
 
 
-viewSign : SignResult -> String -> Html Msg
-viewSign res token =
+viewSign : SignResult -> String -> String -> Html Msg
+viewSign res token img =
     div [ class "card" ]
         [ viewSignTitle res.title
-        , viewSignImage res.url res.title
+        , viewSignImage img res.title
         , viewSignDescription res token
         , viewSignHighways res
         ]
@@ -531,7 +545,7 @@ viewCountOrError model =
 
         Just results ->
             div []
-                [ viewSign results model.mapToken
+                [ viewSign results model.mapToken model.currentImageDisplay
                 ]
 
 
@@ -632,13 +646,22 @@ view model =
     }
 
 
+
+-- Subscriptions
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    receiveImageUpdates Receive
+
+
 main : Program Flags Model Msg
 main =
     Browser.application
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         , onUrlRequest = LinkClicked
         , onUrlChange = UrlChanged
         }
