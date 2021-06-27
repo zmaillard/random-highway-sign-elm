@@ -1,6 +1,6 @@
 {
   "name": "random-highway-sign-elm",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "main": "dist/index.html",
   "scripts": {
     "start": "parcel serve public/index.html",
