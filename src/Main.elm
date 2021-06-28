@@ -560,9 +560,7 @@ viewCountOrError model =
             text ""
 
         Just results ->
-            div []
-                [ viewSign results model.mapToken model.currentImageDisplay
-                ]
+            viewSign results model.mapToken model.currentImageDisplay
 
 
 viewFooter : String -> Html Msg
@@ -625,7 +623,7 @@ viewFilterText model =
                 div [] []
 
             else
-                div [ class "box is-centered" ]
+                div [ class "box" ]
                     [ h4 [ class "title is-4 is-centered" ]
                         [ text "Filters"
                         ]
@@ -649,10 +647,10 @@ currentView model =
             [ div [ class "columns has-same-height is-gapless is-centered" ]
                 [ div [ class "column is-two-thirds" ]
                     [ viewCountOrError model
+                    , viewFilterText model
                     ]
                 ]
             ]
-        , viewFilterText model
         , viewRefrshButton model.loading
         , viewFooter model.version
         ]
