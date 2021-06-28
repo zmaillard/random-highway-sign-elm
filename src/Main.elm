@@ -254,7 +254,7 @@ getFilterDescription route sign =
             in
             case placeCleanMaybe of
                 Just placeClean ->
-                    "Showing Random Signs From " ++ placeClean ++ ", " ++ sign.state
+                    placeClean ++ ", " ++ sign.state
 
                 Nothing ->
                     ""
@@ -264,10 +264,10 @@ getFilterDescription route sign =
                 cleanTag =
                     Url.percentDecode tag |> Maybe.withDefault ""
             in
-            "Showing Random Signs Tagged With " ++ cleanTag
+            "Tagged With " ++ cleanTag
 
         Route.County _ _ ->
-            "Showing Random Signs From " ++ sign.county ++ " " ++ sign.countyType ++ ", " ++ sign.state
+            sign.county ++ " " ++ sign.countyType ++ ", " ++ sign.state
 
         Route.Country _ ->
             let
@@ -279,13 +279,13 @@ getFilterDescription route sign =
                         |> Url.percentDecode
                         |> Maybe.withDefault ""
             in
-            "Showing Random Signs From " ++ countryName
+            countryName
 
         Route.Highway highway ->
-            "Showing Random Signs On " ++ highway
+            highway
 
         Route.State state ->
-            "Showing Random Signs From " ++ Maybe.withDefault "" (Url.percentDecode state)
+            Maybe.withDefault "" (Url.percentDecode state)
 
         Route.All ->
             ""
@@ -324,6 +324,21 @@ signRequest route url apiKey offset =
         }
 
 
+baseUrl : String -> String
+baseUrl imageId =
+    "https://sign.sagebrushgis.com/" ++ imageId ++ "/" ++ imageId
+
+
+largeUrl : String -> String
+largeUrl imageId =
+    baseUrl imageId ++ "_l.jpg"
+
+
+placeholderUrl : String -> String
+placeholderUrl imageId =
+    baseUrl imageId ++ "_p.jpg"
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -360,14 +375,15 @@ update msg model =
                     in
                     case sign of
                         Nothing ->
-                          ( { model | sign = Maybe.Nothing, loading = False }, Cmd.none )
+                            ( { model | sign = Maybe.Nothing, loading = False }, Cmd.none )
+
                         Just s ->
                             let
                                 url =
-                                    "https://sign.sagebrushgis.com/" ++ s.url ++ "/" ++ s.url ++ "_l.jpg"
+                                    largeUrl s.url
 
                                 placeholder =
-                                    "https://sign.sagebrushgis.com/" ++ s.url ++ "/" ++ s.url ++ "_p.jpg"
+                                    placeholderUrl s.url
                             in
                             ( { model | sign = sign, loading = False, currentImageDisplay = placeholder }, loadImage url )
 
@@ -609,12 +625,15 @@ viewFilterText model =
                 div [] []
 
             else
-                div [ class "buttons is-centered" ]
-                    [ a [ class "button is-success is-outlined ", href "/" ]
-                        [ span []
+                div [ class "box is-centered" ]
+                    [ h4 [ class "title is-4 is-centered" ]
+                        [ text "Filters"
+                        ]
+                    , div [ class "tags has-addons" ]
+                        [ span [ class "tag is-success is-light" ]
                             [ text (getFilterDescription model.route sign)
                             ]
-                        , button [ class "delete" ]
+                        , a [ class "tag is-delete", href "/" ]
                             []
                         ]
                     ]
